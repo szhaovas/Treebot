@@ -194,7 +194,7 @@ void loop() {
   Serial.print(fit, 10);
   Serial.println();
   save_fitness(fit);
-  return;
+  while(1);
 }
 
 
