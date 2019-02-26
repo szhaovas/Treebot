@@ -217,6 +217,16 @@ void loop() {
   Serial.print("Fitness: ");
   Serial.print(fit, 10);
   Serial.println();
+  Serial.print("Left array:");
+  for (int i = 0; i < 200; i++) {
+    Serial.print(left[i]);
+    Serial.print(" ");
+  }
+  Serial.print("\nRight array:");
+  for (int i = 0; i < 200; i++) {
+    Serial.print(right[i]);
+    Serial.print(" ");
+  }
   save_fitness(fit);
   while(1);
 }
