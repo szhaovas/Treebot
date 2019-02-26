@@ -25,10 +25,10 @@ int right[200];
 
 // sensor and motor pins
 #define L_IR_pin A2
-#define R_IR_pin A3
-#define M0_pin A4
-#define ML_pin A5
-#define MR_pin A6
+#define R_IR_pin A5
+#define M0_pin 2
+#define ML_pin 4
+#define MR_pin 6
 
 // functions in this project
 double* neural_network(double left_IR, double right_IR);
@@ -38,16 +38,21 @@ void motor_driver(double m0, double ml, double mr);
 void save_fitness(double fit);
 double compute_fitness();
 
-// IR parameters (from Wenxuan)
-double voltsConstant = 0.00488281;  // 5/1024
-double IR_min;
-double Raw_max_range; // Difference between max and min IR values
+// IR parameters
+double IR_min = 0; //when Treebot cannot see
+double Raw_max_range = 450; //the close object
 
-// angles of cylinders
-double close_min;
-double close_max;
-double far_min;
-double far_max;
+//// angles of cylinders
+//double close_min;
+//double close_max;
+//double far_min;
+//double far_max;
+
+// IR ranges of cylinders
+double close_min = 170;
+double close_max = 250;
+double far_min = 60;
+double far_max = 120;
 
 
 void setup() {
@@ -180,13 +185,32 @@ void setup() {
 void loop() {
   // Assumes 200 evaluation steps
   while(eval_steps < 200) {
+    Serial.print("Step: ");
+    Serial.print(eval_steps);
+    Serial.print("\n");
     double* IR_values = IR_reader();
+    Serial.print("LIR:");
+    Serial.print(IR_values[0]);
+    Serial.print(" RIR:");
+    Serial.print(IR_values[1]);
+    Serial.print(" ");
     double* motor_commands = neural_network(IR_values[0], IR_values[1]);
-    motor_driver(motor_commands[0], motor_commands[1], motor_commands[2]);
+    Serial.print("M0:");
+    Serial.print(motor_commands[0]);
+    Serial.print(" ML:");
+    Serial.print(motor_commands[1]);
+    Serial.print(" MR:");
+    Serial.print(motor_commands[2]);
+    Serial.print("\n");
+    // motor_driver(motor_commands[0], motor_commands[1], motor_commands[2]);
+    M0.write(motor_commands[0]);
+    Ml.write(motor_commands[1]);
+    Mr.write(motor_commands[2]);
     free(IR_values);
     free(motor_commands);
-    Serial.println(eval_steps);
     eval_steps++;
+    // Makes sure the motor has moved to the intended position before the next command comes in
+    delay(1000);
   }
   Serial.println("Run complete! Computing fitness...");
   double fit = compute_fitness();
@@ -266,13 +290,30 @@ double* neural_network(double left_IR, double right_IR) {
 double* IR_reader() {
   // result to be returned
   double* result = (double*) malloc(2 * sizeof(double));
-  double LIR;
-  double RIR;
+  double LIR = 0;
+  double RIR = 0;
   
   // Read in the IR values; this part needs to be consistent with previous testings
-  LIR = analogRead(L_IR_pin);
-  RIR = analogRead(R_IR_pin);
+  // takes 10 measures and average
+  for (int i = 0; i < 10; i++) {
+    LIR += analogRead(L_IR_pin);
+    RIR += analogRead(R_IR_pin);
+  }
+  LIR = LIR / 10;
+  RIR = RIR / 10;
 
+  // Use IR values to identify cylinders
+  if ((LIR >= close_min) && (LIR <= close_max)) {
+    left[eval_steps] = -1;
+  } else if ((LIR >= far_min) && (LIR <= far_max)) {
+    left[eval_steps] = 1;
+  }
+  if ((RIR >= close_min) && (RIR <= close_max)) {
+    right[eval_steps] = -1;
+  } else if ((RIR >= far_min) && (RIR <= far_max)) {
+    right[eval_steps] = 1;
+  }
+  
   // Clamp the IR readings down to the [0, 10] range and store into result pointer
   LIR = (LIR - IR_min) / Raw_max_range * 10;
   RIR = (RIR - IR_min) / Raw_max_range * 10;
@@ -297,31 +338,37 @@ double* IR_reader() {
 // positions accordingly
 // Also update the left and right arrays according to angles
 // ------------------------------------------------------------------
-void motor_driver(double m0, double ml, double mr) {
-  // move the servos
-  M0.write(m0);
-  Ml.write(ml);
-  Mr.write(mr);
-
-  // Assumes servo motors to be 0 ~ 180
-  // update left and right arrays
-  // is left arm seeing close cylinder?
-  if (((m0 - 90) + (ml - 90)) >= close_min || ((m0 - 90) + (ml - 90)) <= close_max) {
-    left[eval_steps] = -1;
-  }
-  // is left arm seeing far cylinder?
-  else if (((m0 - 90) + (ml - 90)) >= far_min || ((m0 - 90) + (ml - 90)) <= far_max) {
-    left[eval_steps] = 1;
-  }
-  // is right arm seeing close cylinder?
-  if (((m0 - 90) + (mr - 90)) >= close_min || ((m0 - 90) + (mr - 90)) <= close_max) {
-    right[eval_steps] = -1;
-  }
-  // is right arm seeing far cylinder?
-  else if (((m0 - 90) + (mr - 90)) >= far_min || ((m0 - 90) + (mr - 90)) <= far_max) {
-    right[eval_steps] = 1;
-  }
-}
+//void motor_driver(double m0, double ml, double mr) {
+//  // run m0
+//  M0.write(m0);
+//
+//  // clamp ml down to the range [0, 90] before running
+//  double c_ml = ml /2;
+//  Ml.write(c_ml);
+//
+//  // map mr to [90, 180] before running
+//  double c_mr = mr / 2 + 90;
+//  Mr.write(c_mr);
+//
+//  // Assumes servo motors to be 0 ~ 180
+//  // update left and right arrays
+//  // is left arm seeing close cylinder?
+//  if (((m0 - 90) + (c_ml - 90)) >= close_min && ((m0 - 90) + (c_ml - 90)) <= close_max) {
+//    left[eval_steps] = -1;
+//  }
+//  // is left arm seeing far cylinder?
+//  else if (((m0 - 90) + (c_ml - 90)) >= far_min && ((m0 - 90) + (c_ml - 90)) <= far_max) {
+//    left[eval_steps] = 1;
+//  }
+//  // is right arm seeing close cylinder?
+//  if (((m0 - 90) + (c_mr - 90)) >= close_min && ((m0 - 90) + (c_mr - 90)) <= close_max) {
+//    right[eval_steps] = -1;
+//  }
+//  // is right arm seeing far cylinder?
+//  else if (((m0 - 90) + (c_mr - 90)) >= far_min && ((m0 - 90) + (c_mr - 90)) <= far_max) {
+//    right[eval_steps] = 1;
+//  }
+//}
 
 
 // ------------------------------------------------------------------
