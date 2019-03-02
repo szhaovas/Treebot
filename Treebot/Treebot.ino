@@ -490,7 +490,7 @@ boolean intersect_circle(double m0, double m, String circle) {
   // center of circle?
   double distance = abs(-slope * relative_x + relative_y) / sqrt(sq(slope));
 
-  // if distance is shorter than radius, then there is at intersectoin
+  // if distance is shorter than radius, then there is an intersectoin
   return (distance <= cylinder_radius);
 }
 
