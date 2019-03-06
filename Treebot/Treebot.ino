@@ -458,7 +458,7 @@ boolean intersect_circle(double m0, double m, String circle) {
 
   // what are the coordinates of main arm's tip?
   double main_tip_x = main_arm_length * sin(a0);
-  double main_tip_y = abs(main_arm_length * cos(a0));
+  double main_tip_y = main_arm_length * cos(a0);
 
   // what are the circle's coordinates relative to main arm's tip?
   double relative_x;
@@ -484,11 +484,11 @@ boolean intersect_circle(double m0, double m, String circle) {
   // the origin of a coordinate grid centered at (main_tip_x, main_tip_y),
   // and orientated with positive y pointing towards 0 rad and positive x
   // pointing towards pi/2 rad, what would its slope be?
-  double slope = sin((m + m0) * PI / 180);
+  double slope = -tan((m + m0 - 90) * PI / 180);
   
   // what is the shortest distance between the aforementioned line and the
   // center of circle?
-  double distance = abs(-slope * relative_x + relative_y) / sqrt(sq(slope));
+  double distance = abs((-slope * relative_x + relative_y) / slope);
 
   // if distance is shorter than radius, then there is at intersectoin
   return (distance <= cylinder_radius);
