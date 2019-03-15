@@ -30,20 +30,20 @@ int left[200];
 int right[200];
 
 // sensor and motor pins
-#define L_IR_pin A2
+#define L_IR_pin A1
 #define R_IR_pin A5
 #define M0_pin 2
 #define ML_pin 4
 #define MR_pin 6
 
 // functions in this project
-double* neural_network(double left_IR, double right_IR);
-double* IR_reader();
-void motor_driver(double m0, double ml, double mr);
+int* neural_network(double left_IR, double right_IR);
+double* IR_reader(int m0, int ml, int mr);
+void motor_driver(int m0, int ml, int mr);
 double compute_fitness();
 void save_fitness(double fit);
 void see_cylinder_p(double m0, double ml, double mr);
-boolean intersect_circle(double m0, double m, String circle);
+//boolean intersect_circle(double m0, double m, String circle);
 //void see_cylinder_p(double m0, double ml, double mr);
 //double* get_range(double m0, String cylinder);
 //double tanh(double x);
@@ -53,18 +53,22 @@ boolean intersect_circle(double m0, double m, String circle);
 double IR_min = 0; //when Treebot cannot see
 double Raw_max_range = 450; //the close object
 
-// Global parameters for forward kinematics
-// use cm as unit
-double main_arm_length = 22.5;
-double cylinder_radius = 8.45;
-double left_close_cylinder_xy[2] = {-18.1, 62.75};
-double left_far_cylinder_xy[2] = {-18.1, 89.99};
-double right_close_cylinder_xy[2] = {18.1, 62.75};
-double right_far_cylinder_xy[2] = {18.1, 89.99};
+// used for telling cylinder from background noise
+double left_threshold = 65;
+double right_threshold = 65;
+
+//// Global parameters for forward kinematics
+//// use cm as unit
+//double main_arm_length = 22.5;
+//double cylinder_radius = 8.45;
+//double left_close_cylinder_xy[2] = {-37.5, 48.6};
+//double left_far_cylinder_xy[2] = {-65.0, 67.3};
+//double right_close_cylinder_xy[2] = {37.5, 48.6};
+//double right_far_cylinder_xy[2] = {65.0, 67.3};
 
 //Adjust these as environment changes
-String left_cylinder = "left_close"; //"left_far"
-String right_cylinder = "right_far"; //"right_close"
+String left_cylinder = "close"; //"far/close"
+String right_cylinder = "far"; //"far/close"
 
 
 void setup() {
@@ -205,29 +209,26 @@ void loop() {
     Serial.print("Step: ");
     Serial.print(eval_steps);
     Serial.print("\n");
-    double* IR_values = IR_reader();
-    Serial.print("LIR:");
-    Serial.print(IR_values[0]);
-    Serial.print(" RIR:");
-    Serial.print(IR_values[1]);
-    Serial.print(" ");
-    double* motor_commands = neural_network(IR_values[0], IR_values[1]);
+    int M0_angle = M0.read();
+    int Ml_angle = Ml.read();
+    int Mr_angle = Mr.read();
+    double* IR_values = IR_reader(M0_angle, Ml_angle, Mr_angle);
     Serial.print("M0:");
-    Serial.print(motor_commands[0]);
+    Serial.print(M0_angle);
     Serial.print(" ML:");
-    Serial.print(motor_commands[1]);
+    Serial.print(Ml_angle);
     Serial.print(" MR:");
-    Serial.print(motor_commands[2]);
-    Serial.print("\n");
-    motor_driver(motor_commands[0], motor_commands[1], motor_commands[2]);
-    free(IR_values);
-    free(motor_commands);
+    Serial.println(Mr_angle);
     Serial.print("Current_fitness: ");
     Serial.println(compute_fitness());
     Serial.print("Left_seen?: ");
     Serial.println(left[eval_steps]);
     Serial.print("Right_seen?: ");
     Serial.println(right[eval_steps]);
+    int* motor_commands = neural_network(IR_values[0], IR_values[1]);
+    motor_driver(motor_commands[0], motor_commands[1], motor_commands[2]);
+    free(IR_values);
+    free(motor_commands);
     eval_steps++;
     // Makes sure the motor has moved to the intended position before the next command comes in
     delay(1000);
@@ -254,13 +255,13 @@ void loop() {
 
 // ------------------------------------------------------------------
 // Input: IR values clamped between 0 and 10
-// Output: A double array of length 3, containing the angles to be fed
+// Output: A int array of length 3, containing the angles to be fed
 //         into the 3 motors, first m0, second mL, third mR
 // Side effects: Update the activation array
 // ------------------------------------------------------------------
 // NOTE: DON'T FORGET TO FREE AFTER CALLING!!!
 // ------------------------------------------------------------------
-double* neural_network(double left_IR, double right_IR) {
+int* neural_network(double left_IR, double right_IR) {
   // Assumes dimensions
   // this will replace the old activations by the end of this function
   double new_activations[12];
@@ -269,7 +270,7 @@ double* neural_network(double left_IR, double right_IR) {
   // sum of the pre_sum_array, update for each column
   double sum;
   // the motor angles array to be returned as result
-  double* result = (double*) malloc(3 * sizeof(double));
+  int* result = (int*) malloc(3 * sizeof(int));
 
   // Assumes dimensions
   // populate new_activations
@@ -303,7 +304,7 @@ double* neural_network(double left_IR, double right_IR) {
   // Assumes the max range of servo motors to be 180
   // Calculate results
   for (int i = 0; i < 3; i++) {
-    result[i] = activations[9 + i] * joints[i] * 90 + 90;
+    result[i] = (int) round(activations[9 + i] * joints[i] * 90 + 90);
   }
 
   // The angles for left servo must stay within the range [0, 90]
@@ -318,10 +319,12 @@ double* neural_network(double left_IR, double right_IR) {
 // ------------------------------------------------------------------
 // Read in both IR's, clamp their values down to [0, 10], and return
 // the clamped values in a length 2 array first left, second right
+// also update left and right arrays by calling see_cylinder_p with
+// the passed in motor parameters and averaged IR locally computed
 // ------------------------------------------------------------------
 // NOTE: DON'T FORGET TO FREE!!!
 // ------------------------------------------------------------------
-double* IR_reader() {
+double* IR_reader(int m0, int ml, int mr) {
   // result to be returned
   double* result = (double*) malloc(2 * sizeof(double));
   double LIR = 0;
@@ -335,6 +338,15 @@ double* IR_reader() {
   }
   LIR = LIR / 10;
   RIR = RIR / 10;
+
+  Serial.print("LIR:");
+  Serial.print(LIR);
+  Serial.print(" RIR:");
+  Serial.print(RIR);
+  Serial.print(" ");
+
+  // update left and right arrays by calling see_cylinder_p
+  see_cylinder_p(m0, ml, mr, LIR, RIR);
   
   // Clamp the IR readings down to the [0, 10] range and store into result pointer
   LIR = (LIR - IR_min) / Raw_max_range * 10;
@@ -350,13 +362,10 @@ double* IR_reader() {
 // Take in angles for m0, ml, and mr, and move them to corresponding
 // positions accordingly
 // ------------------------------------------------------------------
-void motor_driver(double m0, double ml, double mr) {
+void motor_driver(int m0, int ml, int mr) {
   M0.write(m0);
   Ml.write(ml);
   Mr.write(mr);
-
-  // Update left and right arrays
-  see_cylinder_p(m0, ml, mr);
 }
 
 
@@ -408,15 +417,19 @@ void save_fitness(double fit) {
 //        currently they are simply taken from the commands sent to servos
 //        i.e. we assume servos have moved to the exact positions they
 //        are instructed to; in the future we might shift to using servo.read
-// Global parameter: left_cylinder, which is a string that can either be left_close or left_far same
-//                   for right_cylinder. These will be modified manually according to the environment
+//        left_IR and right_IR are IR values passed in from IR_reader
+// Global parameter: left_cylinder and right_cylinder, which can be either close or far
+//                   left_threshold and right_threshold are the smallest IR values that
+//                   can be reliably considered to not be due to noise. These values do
+//                   NOT distinguish between close and far conditions, since those are already
+//                   defined in the experimental setup.
 // Side effect: modify the left and right arrays for the current evaluation step
 //              with the results returned from intersect_circle
 // ------------------------------------------------------------------
-void see_cylinder_p(double m0, double ml, double mr) {
+void see_cylinder_p(int m0, int ml, int mr, double left_IR, double right_IR) {
   // Is the left cylinder being seen?
-  if (intersect_circle(m0, ml, left_cylinder) || intersect_circle(m0, mr, left_cylinder)) {
-    if (left_cylinder.equals("left_close")) {
+  if (((m0 + ml < 180) && (left_IR > left_threshold)) || ((m0 + mr < 180) && (right_IR > right_threshold))) {
+    if (left_cylinder.equals("close")) {
       left[eval_steps] = -1;
     } else {
       left[eval_steps] = 1;
@@ -425,73 +438,13 @@ void see_cylinder_p(double m0, double ml, double mr) {
 
   
   // Is the right cylinder being seen?
-  if (intersect_circle(m0, ml, right_cylinder) || intersect_circle(m0, mr, right_cylinder)) {
-    if (right_cylinder.equals("right_close")) {
+  if (((m0 + ml > 180) && (left_IR > left_threshold)) || ((m0 + mr > 180) && (right_IR > right_threshold))) {
+    if (right_cylinder.equals("close")) {
       right[eval_steps] = -1;
     } else {
       right[eval_steps] = 1;
     }
   }
-}
-
-
-// ------------------------------------------------------------------
-// This function returns true if the extension of the branch driven by m
-// intersects with the base of a given cylinder.
-// The logic of this function took inspiration from this post: and Collin's implementation
-// https://math.stackexchange.com/questions/275529/check-if-line-intersects-with-circles-perimeter
-// ------------------------------------------------------------------
-// Input: m0 is the angle of the base motor
-//        m is the angle of either left or right motor
-//        circle can be one of "left_close", "left_far", "right_close", "right_far"
-// Global parameter: left_close_cylinder_xy, left_far_cylinder_xy, right_close_cylinder_xy,
-//                   and right_far_cylinder_xy, which are all pre-defined coordinates
-//                   relative to the base motor.
-//                   main_arm_length, which is the measured length of main arm
-//                   cylinder_radius, which is the measured radius of cylinders
-//                   These are all in the unit of cm
-// Output: Boolean indicating if there's an intersection
-// ------------------------------------------------------------------
-boolean intersect_circle(double m0, double m, String circle) {
-  // Convert the servo angles to radians with 0 rad corresponding to servo.write(90)
-  double a0 = (m0 - 90) * PI / 180;
-
-  // what are the coordinates of main arm's tip?
-  double main_tip_x = main_arm_length * sin(a0);
-  double main_tip_y = main_arm_length * cos(a0);
-
-  // what are the circle's coordinates relative to main arm's tip?
-  double relative_x;
-  double relative_y;
-  if (circle.equals("left_close")) {
-    relative_x = left_close_cylinder_xy[0] - main_tip_x;
-    relative_y = left_close_cylinder_xy[1] - main_tip_y;
-  }
-  else if (circle.equals("left_far")) {
-    relative_x = left_far_cylinder_xy[0] - main_tip_x;
-    relative_y = left_far_cylinder_xy[1] - main_tip_y;
-  }
-  else if (circle.equals("right_close")) {
-    relative_x = right_close_cylinder_xy[0] - main_tip_x;
-    relative_y = right_close_cylinder_xy[1] - main_tip_y;
-  }
-  else if (circle.equals("right_far")) {
-    relative_x = right_far_cylinder_xy[0] - main_tip_x;
-    relative_y = right_far_cylinder_xy[1] - main_tip_y;
-  }
-
-  // if we imagine the branch driven by m to be a straight line passing
-  // the origin of a coordinate grid centered at (main_tip_x, main_tip_y),
-  // and orientated with positive y pointing towards 0 rad and positive x
-  // pointing towards pi/2 rad, what would its slope be?
-  double slope = -tan((m + m0 - 90) * PI / 180);
-  
-  // what is the shortest distance between the aforementioned line and the
-  // center of circle?
-  double distance = abs((-slope * relative_x + relative_y) / slope);
-
-  // if distance is shorter than radius, then there is an intersectoin
-  return (distance <= cylinder_radius);
 }
 
 
@@ -682,5 +635,65 @@ boolean intersect_circle(double m0, double m, String circle) {
 //  result[0] = min(f, g);
 //  result[1] = max(f, g);
 //  return result;
+
+
+//// ------------------------------------------------------------------
+//// This function returns true if the extension of the branch driven by m
+//// intersects with the base of a given cylinder.
+//// The logic of this function took inspiration from this post: and Collin's implementation
+//// https://math.stackexchange.com/questions/275529/check-if-line-intersects-with-circles-perimeter
+//// ------------------------------------------------------------------
+//// Input: m0 is the angle of the base motor
+////        m is the angle of either left or right motor
+////        circle can be one of "left_close", "left_far", "right_close", "right_far"
+//// Global parameter: left_close_cylinder_xy, left_far_cylinder_xy, right_close_cylinder_xy,
+////                   and right_far_cylinder_xy, which are all pre-defined coordinates
+////                   relative to the base motor.
+////                   main_arm_length, which is the measured length of main arm
+////                   cylinder_radius, which is the measured radius of cylinders
+////                   These are all in the unit of cm
+//// Output: Boolean indicating if there's an intersection
+//// ------------------------------------------------------------------
+//boolean intersect_circle(double m0, double m, String circle) {
+//  // Convert the servo angles to radians with 0 rad corresponding to servo.write(90)
+//  double a0 = (m0 - 90) * PI / 180;
+//
+//  // what are the coordinates of main arm's tip?
+//  double main_tip_x = main_arm_length * sin(a0);
+//  double main_tip_y = main_arm_length * cos(a0);
+//
+//  // what are the circle's coordinates relative to main arm's tip?
+//  double relative_x;
+//  double relative_y;
+//  if (circle.equals("left_close")) {
+//    relative_x = left_close_cylinder_xy[0] - main_tip_x;
+//    relative_y = left_close_cylinder_xy[1] - main_tip_y;
+//  }
+//  else if (circle.equals("left_far")) {
+//    relative_x = left_far_cylinder_xy[0] - main_tip_x;
+//    relative_y = left_far_cylinder_xy[1] - main_tip_y;
+//  }
+//  else if (circle.equals("right_close")) {
+//    relative_x = right_close_cylinder_xy[0] - main_tip_x;
+//    relative_y = right_close_cylinder_xy[1] - main_tip_y;
+//  }
+//  else if (circle.equals("right_far")) {
+//    relative_x = right_far_cylinder_xy[0] - main_tip_x;
+//    relative_y = right_far_cylinder_xy[1] - main_tip_y;
+//  }
+//
+//  // if we imagine the branch driven by m to be a straight line passing
+//  // the origin of a coordinate grid centered at (main_tip_x, main_tip_y),
+//  // and orientated with positive y pointing towards 0 rad and positive x
+//  // pointing towards pi/2 rad, what would its slope be?
+//  double slope = -tan((m + m0 - 90) * PI / 180);
+//  
+//  // what is the shortest distance between the aforementioned line and the
+//  // center of circle?
+//  double distance = abs((-slope * relative_x + relative_y) / slope);
+//
+//  // if distance is shorter than radius, then there is an intersectoin
+//  return (distance <= cylinder_radius);
+//}
 //}
 
