@@ -3,7 +3,7 @@ import genome2csv
 import numpy as np
 
 def get_fitness( mutants, gen ):
-    # return a vector of fitnesses by inputting into terminal the calculated fitness value of 
+    # return a vector of fitnesses by inputting into terminal the calculated fitness value of
     # each genome
 
     fitnesses = []
@@ -11,7 +11,7 @@ def get_fitness( mutants, gen ):
         # for each mutant manually input the average fitness value over the two tested genomes.
         # you can also use this to input and load a file if that is easier for you.
         # i.e. If you store the cylinder's is seen data in a file, you can modify this code to directly
-        # take that file and calculate the fitness. 
+        # take that file and calculate the fitness.
         print( '\n' )
         print( 'Please input fitness for genome ' + str( i ) + ' of generation ' + str( gen ) )
         fitness = float( input() )
@@ -25,12 +25,12 @@ if __name__ == "__main__":
 
     # this is a test file name
     # DO NOT USE THIS FOR EXPERIMENTS
-    input_genome = '2019-01-25-test.genome'
+    input_genome = 'genome.txt'
 
     if len(sys.argv) > 1: # if there is an input file name, replace the input genome
         input_genome = sys.argv[1]
 
-    # this is the starting genome for cma-es. 
+    # this is the starting genome for cma-es.
     starting_genome = genome2csv.load_genome( input_genome )
 
     # this is the number of new genomes you need to test each generation

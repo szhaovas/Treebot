@@ -43,6 +43,7 @@ void motor_driver(int m0, int ml, int mr);
 double compute_fitness();
 void save_fitness(double fit);
 void see_cylinder_p(double m0, double ml, double mr);
+int base_angle_reader(int m0);
 //boolean intersect_circle(double m0, double m, String circle);
 //void see_cylinder_p(double m0, double ml, double mr);
 //double* get_range(double m0, String cylinder);
@@ -70,6 +71,10 @@ double right_threshold = 65;
 String left_cylinder = "close"; //"far/close"
 String right_cylinder = "far"; //"far/close"
 
+// how much time (in ms) is required for the base servo to make a full swing? (check the servo specifications for this)
+double full_swing_time = 1500;
+// how much time (in ms) to wait before starting the next eval step?
+int post_step_delay = 1500;
 
 void setup() {
   
@@ -210,6 +215,7 @@ void loop() {
     Serial.print(eval_steps);
     Serial.print("\n");
     int M0_angle = M0.read();
+    M0_angle = base_angle_reader(M0_angle);
     int Ml_angle = Ml.read();
     int Mr_angle = Mr.read();
     double* IR_values = IR_reader(M0_angle, Ml_angle, Mr_angle);
@@ -231,7 +237,7 @@ void loop() {
     free(motor_commands);
     eval_steps++;
     // Makes sure the motor has moved to the intended position before the next command comes in
-    delay(1000);
+    delay(post_step_delay);
   }
   Serial.println("Run complete! Computing fitness...");
   double fit = compute_fitness();
@@ -444,6 +450,27 @@ void see_cylinder_p(int m0, int ml, int mr, double left_IR, double right_IR) {
     } else {
       right[eval_steps] = 1;
     }
+  }
+}
+
+// ------------------------------------------------------------------
+// Input:  m0 is the command sent to the base servo
+// Global parameters: full_swing_time and post_step_delay, with descriptions at where they were declared
+// Output: how much will the base servo actually turn
+// ------------------------------------------------------------------
+// Note: this function is only intended to be used on the base servo!
+// ------------------------------------------------------------------
+int base_angle_reader(int m0) {
+  // assuming the base servo motor swings at constant velocity, this velocity is then (180 / full_swing_time) (degree/ms)
+  // the max angle by which the base servo motor can swing in the period of post_step_delay is therefore (post_step_delay * (180 / full_swing_time))
+  // if m0 is smaller than this angle, then the base servo will be able to make the full swing, in which case just return m0
+  // otherwise return (post_step_delay * (180 / full_swing_time))
+  int swing_speed = (int) (180 / full_swing_time);
+  if (m0 <= (post_step_delay * swing_speed)) {
+    return m0;
+  }
+  else {
+    return (post_step_delay * swing_speed);
   }
 }
 
