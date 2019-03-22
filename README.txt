@@ -2,9 +2,9 @@ Preliminary experiment procedures: (please correct if you notice anything wrong)
 
 1. run physical_runner.py, it will prompt you to enter fitness, ignore it for now and leave it running in the terminal ->
 2. save genome.txt and fitness.txt into the SD card ->
-3. set up the cylinders ->
+3. set up the cylinders and type in the cylinders of configuration on lines 70 and 71 (left_cylinder and right_cylinder) in Treebot\Treebot.ino ->
 4. plug the SD card into Arduino mega ->
-5. upload Treebot/Treebot.ino ->
+5. upload Treebot\Treebot.ino ->
 6. open serial monitor, where information about the current trial should be displayed. Fitness will be displayed at the end of the trial, you may also see fitness for the current trial in fitness.txt ->
 7. unplug the SD card from Arduino, and plug it into the machine on which you are running physical_runner.py -> 
 8. enter the fitness of this run into physical_runner, which should prompt you for another fitness value, leave it for now and continue ->
