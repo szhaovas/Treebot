@@ -55,8 +55,8 @@ double IR_min = 0; //when Treebot cannot see
 double Raw_max_range = 450; //the close object
 
 // used for telling cylinder from background noise
-double left_threshold = 65;
-double right_threshold = 65;
+double left_threshold = 105;
+double right_threshold = 105;
 
 //// Global parameters for forward kinematics
 //// use cm as unit
@@ -72,9 +72,9 @@ String left_cylinder = "close"; //"far/close"
 String right_cylinder = "far"; //"far/close"
 
 // how much time (in ms) is required for the base servo to make a full swing? (check the servo specifications for this)
-int full_swing_time = 1500;
+int full_swing_time = 1600;
 // how much time (in ms) to wait before starting the next eval step?
-int post_step_delay = 1500;
+int post_step_delay = 500;
 // what is the previous angle of m0? This value will be subtracted from the next servo command to determine the angle m0 has to turn.
 // will be modified every eval step
 int prev_angle = 90;
