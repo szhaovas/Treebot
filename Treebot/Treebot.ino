@@ -212,7 +212,7 @@ void setup() {
   M0.write(90);
   Ml.write(45);
   Mr.write(135);
-  delay(1000);
+  delay(2000);
 }
 
 
@@ -733,4 +733,3 @@ int base_angle_reader(int m0) {
 //  return (distance <= cylinder_radius);
 //}
 //}
-
