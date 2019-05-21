@@ -1,6 +1,7 @@
 import cma
 import genome2csv
 import numpy as np
+import pickle
 
 def get_fitness( mutants, gen ):
     # return a vector of fitnesses by inputting into terminal the calculated fitness value of
@@ -36,7 +37,7 @@ if __name__ == "__main__":
     # this is the number of new genomes you need to test each generation
     # increase this number if evaluating new genomes is quick
     # this will increase the number of genomes you need to test
-    popsize = 2
+    popsize = 10
 
     # these stay constant over generational time.
     # use them to determine which neurons are connected
@@ -79,6 +80,8 @@ if __name__ == "__main__":
             print( '        Saved genome to', genome_save_name )
         # perform evaluations and input
         es.tell( mutants, get_fitness( mutants, generation ) )
+        # save cma object
+        pickle.dump(es, open('_saved-cma-object.pkl', 'wb'))
         generation += 1
 
         # stopping criteria, you can change this to suit your needs

@@ -61,7 +61,7 @@ double right_threshold = 105;
 //// Global parameters for forward kinematics
 //// use cm as unit
 //double main_arm_length = 22.5;
-//double cylinder_radius = 8.45;
+//double cylinder_radius = 8.4f5;
 //double left_close_cylinder_xy[2] = {-37.5, 48.6};
 //double left_far_cylinder_xy[2] = {-65.0, 67.3};
 //double right_close_cylinder_xy[2] = {37.5, 48.6};
