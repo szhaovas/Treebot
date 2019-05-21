@@ -52,12 +52,21 @@ if __name__ == "__main__":
     weight_input = weight_matrix.flatten()
     m, n = np.shape( weight_matrix )
 
-
-    es = cma.CMAEvolutionStrategy( weight_input, 0.5, { 'popsize' : popsize } )
-
     should_end = False # flag for ending
     generation = 0
     max_gens = 10
+
+    resume_p = input('Is this session a continuation from the previous session?(y or n)')
+    if resume_p == 'y':
+        es = pickle.load(open('_saved-cma-object.pkl', 'rb'))
+        generation = int(input('Please enter generation number:'))
+        if generation > max_gens:
+            should_end = True
+    elif resume_p == 'n':
+        es = cma.CMAEvolutionStrategy(weight_input, 0.5, {'popsize': popsize})
+    else:
+        print('\nInvalid answer, aborting...')
+        should_end = True
 
     while should_end is not True:
         print( '\nStarting Generation', generation )
