@@ -2,6 +2,8 @@ import cma
 import genome2csv
 import numpy as np
 import pickle
+import os
+import shutil
 
 def get_fitness( mutants, gen ):
     # return a vector of fitnesses by inputting into terminal the calculated fitness value of
@@ -74,6 +76,8 @@ if __name__ == "__main__":
         mutants = es.ask() # gets mutant genomes
 
         print( '    saving genomes' )
+        folder_name = 'generation-' + str(generation)
+        os.mkdir(folder_name)
         # save mutant genomes to output files
         for i, mutant_weight in enumerate( mutants ):
             mutant_genome = { 'weights'    : mutant_weight,
@@ -82,11 +86,13 @@ if __name__ == "__main__":
 
             # edit this to whatever is best for you
             # i.e. add a directory or whatever helps
-            genome_save_name = 'gen-' + str( generation ) + '-' + str(i) + '.genome'
+            genome_save_name = 'genome' + str(i) + '.EXT'
+            genome_path_name = folder_name + '\\' + genome_save_name
 
             # save the genome
             genome2csv.save_genome( mutant_genome, genome_save_name )
-            print( '        Saved genome to', genome_save_name )
+            shutil.move(genome_save_name, folder_name)
+            print( '        Saved genome to', genome_path_name )
         # perform evaluations and input
         es.tell( mutants, get_fitness( mutants, generation ) )
         # save cma object
