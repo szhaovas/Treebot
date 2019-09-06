@@ -77,6 +77,8 @@ if __name__ == "__main__":
 
         print( '    saving genomes' )
         folder_name = 'generation-' + str(generation)
+        if os.path.exists(folder_name):
+            shutil.rmtree(folder_name)
         os.mkdir(folder_name)
         # save mutant genomes to output files
         for i, mutant_weight in enumerate( mutants ):
