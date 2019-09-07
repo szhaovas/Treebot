@@ -74,6 +74,11 @@ void loop() {
   Serial.println("////////////////////////////////////////////////////////");
   Serial.println("////////////////////////////////////////////////////////");
   Serial.println("Please adjust the environment settings to far-close, send C to serial monitor when you are done");
+  Serial.print("Fitnesses(close-far): ");
+  for (int i = 0; i < pop_size; i++) {
+    Serial.print(fitnesses[i]);
+    Serial.print(" ");
+  }
   while (pause) {
     while (Serial.available() > 0) {
       if (Serial.read() == 'C') {
@@ -87,8 +92,7 @@ void loop() {
   for (int i = 0; i < pop_size; i++) {
     String full_file_name = header + i + tail;
     NN nn = NN(full_file_name);
-    fitnesses[i] += Evaluate(nn, second_env);
-    fitnesses[i] = fitnesses[i] / 2;
+    fitnesses[i] = Evaluate(nn, second_env);
     Serial.println();
   }
 
@@ -97,7 +101,7 @@ void loop() {
   Serial.println("////////////////////////////////////////////////////////");
   Serial.println("////////////////////////////////////////////////////////");
   Serial.println("Evaluation completed, please restore the environment setting to close-far");
-  Serial.print("Fitnesses: ");
+  Serial.print("Fitnesses(far-close): ");
   for (int i = 0; i < pop_size; i++) {
     Serial.print(fitnesses[i]);
     Serial.print(" ");
